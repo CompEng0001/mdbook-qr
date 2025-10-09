@@ -1,0 +1,50 @@
+name: Release mdbook-qr
+
+on:
+  push:
+    tags:
+      - "v*"
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Add musl target
+        run: rustup target add x86_64-unknown-linux-musl
+
+      - name: Build statically linked binary (musl)
+        run: cargo build --release --target x86_64-unknown-linux-musl
+
+      - name: Prepare dist
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp target/x86_64-unknown-linux-musl/release/mdbook-qr dist/mdbook-qr-linux
+          cd dist
+          tar -czf mdbook-qr-linux.tar.gz mdbook-qr-linux
+          sha256sum mdbook-qr-linux > mdbook-qr-linux_sha256sum.txt
+          sha256sum mdbook-qr-linux.tar.gz > mdbook-qr-linux.tar.gz_sha256sum.txt
+
+      - name: Upload release artifacts
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/mdbook-qr-linux
+            dist/mdbook-qr-linux.tar.gz
+            dist/mdbook-qr-linux_sha256sum.txt
+            dist/mdbook-qr-linux.tar.gz_sha256sum.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN  }}
+
+      - name: Move 'latest' tag to this release
+        uses: EndBug/latest-tag@latest
+        with:
+            ref: latest
