@@ -1,0 +1,37 @@
+[package]
+name = "mdbook-qr"
+version = "0.1.0"
+edition = "2024"
+authors = ["Seb Blair <s.blair@gre.ac.uk>"]
+description = "An mdBook preprocessor that generates a QR code using fast_qr."
+license = "MIT"
+repository = "https://github.com/CompEng0001/mdbook-qr"
+documentation = "https://docs.rs/mdbook-qr"
+readme = "README.md"
+keywords = ["mdbook", "preprocessor", "qr", "fast-qr"]
+categories = ["text-processing", "web-programming"]
+
+[lib]
+name = "mdbook_qr"
+path = "src/lib.rs"
+
+[[bin]]
+name = "mdbook-qr"
+path = "src/main.rs"
+
+[dependencies]
+mdbook = "0.4.52"
+clap = "4.5.48"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.9.8"
+anyhow = "1"
+pathdiff = "0.2"
+fast_qr = { version = "0.13.1", features = ["image"] }
+env_logger = "0.11"
+log = "0.4"
+
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
