@@ -1,4 +1,3 @@
-// src/url.rs
 use anyhow::{anyhow, Result};
 use log::{debug, warn};
 use mdbook::preprocess::PreprocessorContext;

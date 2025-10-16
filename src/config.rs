@@ -1,5 +1,3 @@
-//! Configuration for the mdbook-qr preprocessor, including per-marker profiles.
-
 use serde::{Deserialize, Serialize};
 use fast_qr::convert::{Shape, Color};
 use std::collections::{BTreeMap, HashSet};
@@ -119,12 +117,12 @@ impl Profile {
 pub struct QrConfig {
     pub enable: Option<bool>,
     pub url: Option<String>,
-    pub qr_path: Option<String>,            // default profile only
+    pub qr_path: Option<String>,
     #[serde(default)]
-    pub on_failure: FailureMode,            // <-- NEW field (default Continue)
+    pub on_failure: FailureMode,
     
     #[serde(default)]
-    pub include_default: bool,    // <— NEW (default true)
+    pub include_default: bool,
     
     #[serde(default)]
     pub fit: FitConfig,
@@ -134,8 +132,7 @@ pub struct QrConfig {
     pub background: Option<ColorCfg>,
     pub module: Option<ColorCfg>,
 
-    // if you’re using named subtables: BTreeMap<String, Profile>
-    // or if you’re using array-of-tables: Vec<Profile>
+
     #[serde(default)]
     pub custom: std::collections::BTreeMap<String, Profile>,
 }
@@ -161,7 +158,6 @@ impl Default for QrConfig {
 impl QrConfig {
     pub fn is_enabled(&self) -> bool { self.enable.unwrap_or(true) }
 
-    /// Default profile for {{QR_CODE}}; inherits top-level fields.
     pub fn default_profile(&self) -> Profile {
         Profile {
             marker: Some("{{QR_CODE}}".to_string()),
