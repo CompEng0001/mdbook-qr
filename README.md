@@ -19,7 +19,6 @@
 </p>
 
 An [mdBook](https://github.com/rust-lang/mdBook) preprocessor that generates and embeds a QR code for your book, powered by [fast-qr](https://docs.rs/fast-qr).  
-Since mdBook is mobile-friendly, a QR code makes it easy for readers to access your book instantly on any device.
 
 It produces a PNG image during the build and replaces `{{QR_CODE}}` markers in chapters with an `<img>` tag pointing to the generated QR code.
 
@@ -34,7 +33,6 @@ It produces a PNG image during the build and replaces `{{QR_CODE}}` markers in c
   - Support for multiple **module shapes** (see [Shapes](#shape))
   - Adjustable **quiet zone margin**
 - Supports **custom named QR configurations** under `[preprocessor.qr.custom.*]`  (see [Custom Configuration](#custom-configuration-overview))
-- Defaults to `[output.html].site-url` if `url` is not specified
 
 ---
 
@@ -103,12 +101,11 @@ All options are read from `[preprocessor.qr]` and its sub-tables.
 | `qr-path` | string | Relative or absolute path to the output PNG | `"qr/mdbook-qr-code.png"` |
 | `margin` | integer | Quiet zone around the QR code (in modules) | `2` |
 | `background` | string | Hex color (`#RRGGBBAA`,`#RRGGBB`,`[RRR,GGG,BBB,AAA]`,`[RRR,GGG,BBB]` supported) | `"#FFFFFFFF"` |
-| `module` | string | Hex color (`#RRGGBBAA`,`#RRGGBB`,`[RRR,GGG,BBB,AAA]`,`[RRR,GGG,BBB]` supported) | `"#00000000"`  |
+| `module` | string | Hex color (`#RRGGBBAA`,`#RRGGBB`,`[RRR,GGG,BBB,AAA]`,`[RRR,GGG,BBB]` supported) | `"#000000FF"`  |
 | `shape` | table | Boolean flags defining the QR module shape | `{ square = true }` |
 
 >[!IMPORTANT]
-> - `enable = false` does not delete any qr codes images
-> - `marker` is defaulted to `{{QR_CODE}}` and cannot explicitly be set to anything else. If you want to use your own marker then create a `custom.*` sub-table, see [Custom Configurations](#configuration-overview) 
+> - `marker` is defaulted to `{{QR_CODE}}` and cannot explicitly be set to anything else. If you want to use your marker then create a `custom.*` sub-table, see [Custom Configurations](#configuration-overview) 
 
 ### Fit (Image Size)
 
@@ -146,17 +143,17 @@ If none are supplied, **square** is used.
 
 ## URL Resolution
 
-If `url` is omitted,this is includes `custom.*` sub-table, `mdbook-qr` resolves it automatically from:
+If `url` is omitted, `mdbook-qr` resolves it automatically from:
 
-- GitHub Actions environment variable `GITHUB_REPOSITORY`, producing:
-    
+- GitHub Actions environment variable `GITHUB_REPOSITORY`, producing:  
+  
   - `https://{owner}.github.io/{repo}`
 
   >[!NOTE]
-  > You can always set an env variable locally to test CI and your `QR_Code`
+  > You can always set an env variable locally to test CI
   > - `export GIT_REPOSITORY="owner/repo"`
   >    
-  > To unexport the env use `unset`
+  > To `unset`
   > - `unset GIT_REPOSITORY`
 
 ---
@@ -200,8 +197,6 @@ shape.circle = true
 
 ### Custom Configuration Overview
 
-All configurations are inheritted if not explicitly set in the sub-table. It is 
-
 | Key | Type | Description | Example |
 |-----|------|--------------|----------|
 | `preprocessor.qr.custom.marker` | string | Placeholder text used in Markdown | `"{{QR_CUSTOM}}"` |
@@ -214,7 +209,6 @@ Based on the configuration in [Custom Configurations](#custom-configurations) yo
 ```
 
 Each marker corresponds to its respective `[preprocessor.qr.custom.*]` block.  
-If a marker (e.g. `{{QR_FOOTER}}`) is not defined, it falls back to the base `[preprocessor.qr]` configuration.
 
 ---
 

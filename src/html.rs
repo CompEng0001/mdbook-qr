@@ -1,4 +1,3 @@
-use anyhow::Result;
 use mdbook::book::{Book, BookItem};
 use pathdiff::diff_paths;
 use std::path::{Path, PathBuf};

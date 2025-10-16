@@ -22,7 +22,6 @@ impl Preprocessor for QrPreprocessor {
     fn supports_renderer(&self, _renderer: &str) -> bool { true }
 }
 
-/// Single-shot entrypoint used by the binary (keeps main.rs tiny).
 pub fn run_preprocessor_once() -> Result<()> {
     let pre = QrPreprocessor::new();
     let (ctx, book) = CmdPreprocessor::parse_input(io::stdin())?;
@@ -59,7 +58,7 @@ fn load_custom_defaults(ctx: &PreprocessorContext) -> Option<Profile> {
         .get("preprocessor")?
         .get("qr")?
         .get("custom")?
-        .as_table()?; // mdBook's toml Value table
+        .as_table()?;
 
     let mut p = Profile {
         marker: None,
@@ -143,7 +142,7 @@ fn run_impl(ctx: &PreprocessorContext, book: &mut Book) -> Result<()> {
     if !has_bare_custom {
         profiles.push(default_p.clone());
     } else {
-        log::warn!(
+        warn!(
             "mdbook-qr: bare [preprocessor.qr.custom] present with no named subtables; \
              suppressing default '{{QR_CODE}}' until a named custom (e.g., [preprocessor.qr.custom.flyer]) exists."
         );
@@ -152,7 +151,7 @@ fn run_impl(ctx: &PreprocessorContext, book: &mut Book) -> Result<()> {
     // Named customs (must have marker)
     for (_name, child) in &cfg.custom {
         if child.marker.is_none() {
-            log::warn!("mdbook-qr: custom entry missing `marker`; skipping.");
+            warn!("mdbook-qr: custom entry missing `marker`; skipping.");
             continue;
         }
 
@@ -173,7 +172,7 @@ fn run_impl(ctx: &PreprocessorContext, book: &mut Book) -> Result<()> {
 
     for p in &profiles {
         if let Some(m) = &p.marker {
-            log::info!("mdbook-qr: profile queued -> marker {}", m);
+            info!("mdbook-qr: profile queued -> marker {}", m);
         }   
     }
 
@@ -195,7 +194,7 @@ fn run_impl(ctx: &PreprocessorContext, book: &mut Book) -> Result<()> {
         }
 
         // Resolve URL (explicit -> env fallback)
-        let url = match crate::url::resolve_url(ctx, profile.url.as_deref()) {
+        let url = match crate::url::resolve_url(profile.url.as_deref()) {
             Ok(u) => u,
             Err(_) => match on_failure {
                 FailureMode::Continue => {

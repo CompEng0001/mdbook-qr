@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use fast_qr::convert::{Shape, Color};
-use std::collections::{BTreeMap, HashSet};
+use std::collections::HashSet;
 use log::warn;
 
 
