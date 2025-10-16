@@ -1,7 +1,31 @@
-use clap::{Command, arg};
+use clap::{arg, Command};
 use std::process;
 
+fn init_logging() {
+    if std::env::var_os("RUST_LOG").is_none() {
+        unsafe {        
+            std::env::set_var("RUST_LOG", "warn,mdbook_qr=debug");
+        }
+    }
+    env_logger::Builder::from_env(env_logger::Env::default())
+        .format(|buf, record| {
+            use std::io::Write;
+            writeln!(
+                buf,
+                "{} [{}] ({}): {}",
+                buf.timestamp_seconds(),
+                record.level(),
+                record.target(),
+                record.args()
+            )
+        })
+        .target(env_logger::Target::Stderr)
+        .init();
+}
+
 fn main() {
+    init_logging();
+
     let cli = Command::new("mdbook-qr")
         .about("An mdBook preprocessor that injects QR codes into pages")
         .version(env!("CARGO_PKG_VERSION"))
@@ -12,9 +36,7 @@ fn main() {
         );
 
     let matches = cli.get_matches();
-
     if let Some(("supports", _)) = matches.subcommand() {
-        // Supports all renderers
         process::exit(0);
     }
 

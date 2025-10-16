@@ -29,7 +29,7 @@ It produces a PNG image during the build and replaces `{{QR_CODE}}` markers in c
 
 - Generates **PNG QR codes** using [`fast-qr`](https://docs.rs/fast-qr)
 - Structured configuration under `[preprocessor.qr]` with sub-tables:
-  - Configurable **RGBA** or **hex** color options
+  - Configurable **RGB/A** or **hex** color options
   - Optional **fit width/height** for the `<img>` tag
   - Support for multiple **module shapes** (see [Shapes](#shape))
   - Adjustable **quiet zone margin**
@@ -98,14 +98,17 @@ All options are read from `[preprocessor.qr]` and its sub-tables.
 | Key | Type | Description | Default |
 |-----|------|--------------|----------|
 | `enable` | bool | Enable or disable the preprocessor | `true` |
+| `marker` | string | the marker where `<img>` is injectd| `{{QR_CODE}}`|
 | `url` | string | The URL or text to encode | *(required)* |
 | `qr-path` | string | Relative or absolute path to the output PNG | `"qr/mdbook-qr-code.png"` |
 | `margin` | integer | Quiet zone around the QR code (in modules) | `2` |
-| `background` | string | Hex color (`#RRGGBBAA` supported) | `"#FFFFFFFF"` |
-| `module` | string | Hex color (`#RRGGBBAA` supported) | `"#000000"` |
-| `background-rgba` | array[u8;4] | RGBA background color | `[255,255,255,255]` |
-| `module-rgba` | array[u8;4] | RGBA module color | `[0,0,0,0]` |
+| `background` | string | Hex color (`#RRGGBBAA`,`#RRGGBB`,`[RRR,GGG,BBB,AAA]`,`[RRR,GGG,BBB]` supported) | `"#FFFFFFFF"` |
+| `module` | string | Hex color (`#RRGGBBAA`,`#RRGGBB`,`[RRR,GGG,BBB,AAA]`,`[RRR,GGG,BBB]` supported) | `"#00000000"`  |
 | `shape` | table | Boolean flags defining the QR module shape | `{ square = true }` |
+
+>[!IMPORTANT]
+> - `enable = false` does not delete any qr codes images
+> - `marker` is defaulted to `{{QR_CODE}}` and cannot explicitly be set to anything else. If you want to use your own marker then create a `custom.*` sub-table, see [Custom Configurations](#configuration-overview) 
 
 ### Fit (Image Size)
 
@@ -143,20 +146,28 @@ If none are supplied, **square** is used.
 
 ## URL Resolution
 
-If `url` is omitted, `mdbook-qr` resolves it automatically from:
+If `url` is omitted,this is includes `custom.*` sub-table, `mdbook-qr` resolves it automatically from:
 
-1. `[output.html].site-url` in `book.toml`
-2. GitHub Actions environment variable `GITHUB_REPOSITORY`, producing:  
-   `https://{owner}.github.io/{repo}`
+- GitHub Actions environment variable `GITHUB_REPOSITORY`, producing:
+    
+  - `https://{owner}.github.io/{repo}`
+
+  >[!NOTE]
+  > You can always set an env variable locally to test CI and your `QR_Code`
+  > - `export GIT_REPOSITORY="owner/repo"`
+  >    
+  > To unexport the env use `unset`
+  > - `unset GIT_REPOSITORY`
 
 ---
 
 ## Custom Configurations
 
 Custom QR definitions allow you to create **named styles** that inherit values from the main `[preprocessor.qr]` table.  
-These are declared under `[preprocessor.qr.custom.*]`.
 
-Each named sub-table inherits **all** parent values unless explicitly overridden.
+These are declared under `[preprocessor.qr.custom.*]` as a sub-table.
+
+Each named sub-table inherits **all** parent values unless explicitly overridden, accept `marker`.
 
 ```toml
 [preprocessor.qr]
@@ -181,13 +192,21 @@ background = "#00000000"
 shape.circle = true
 ```
 
+>[!IMPORTANT]
+> The `custom.*` sub-table only generates a QR code when:
+> - When the `marker` is defined and placed in a document
+> - If URL not defined then the sub-table will inherit from default
+> - If `qr-path` is not defined then default will be `qr_codes/qr-code.png` 
+
 ### Custom Configuration Overview
+
+All configurations are inheritted if not explicitly set in the sub-table. It is 
 
 | Key | Type | Description | Example |
 |-----|------|--------------|----------|
 | `preprocessor.qr.custom.marker` | string | Placeholder text used in Markdown | `"{{QR_CUSTOM}}"` |
 
-Use these markers in your Markdown files:
+Based on the configuration in [Custom Configurations](#custom-configurations) you would use these markers in your Markdown files:
 
 ```md
 {{QR_FOOTER}}
