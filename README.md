@@ -18,22 +18,23 @@
   <img src="https://img.shields.io/badge/Built%20with-Rust-orange?logo=rust&style=for-the-badge" alt="Built with Rust" />
 </p>
 
-An <a href="https://github.com/rust-lang/mdBook">mdBook</a> preprocessor that generates and embeds a QR code for your book, powered by <a href="https://docs.rs/fast-qr">fast-qr</a>. Since mdbook is mobile-friendly, a QR code makes it easy to access the book quickly on a mobile device.
-It produces a PNG image during the build and replaces {{QR_CODE}} markers in chapters with an <img> tag pointing to the generated QR code.
+An [mdBook](https://github.com/rust-lang/mdBook) preprocessor that generates and embeds a QR code for your book, powered by [fast-qr](https://docs.rs/fast-qr).  
+Since mdBook is mobile-friendly, a QR code makes it easy for readers to access your book instantly on any device.
 
+It produces a PNG image during the build and replaces `{{QR_CODE}}` markers in chapters with an `<img>` tag pointing to the generated QR code.
 
 ---
 
 ## Features
 
-- Generates a **PNG QR code** using <code>fast-qr</code>.
-- Inserts the image automatically wherever `{{QR_CODE}}` appears.
-- Supports module **shapes** (see [shapes](#shapes)) .
-- Adjustable **quiet zone margin** and **RGB\<A\> colors**.
-- Optional **fit width/height** for injected `<img>` tags.
-- **Idempotent**: reuses identical images to avoid triggering rebuild loops.
-- Defaults to `site-url` when no URL is set.
-- Fully compatible with **mdBook 0.4.x**.
+- Generates **PNG QR codes** using [`fast-qr`](https://docs.rs/fast-qr)
+- Structured configuration under `[preprocessor.qr]` with sub-tables:
+  - Configurable **RGB/A** or **hex** color options
+  - Optional **fit width/height** for the `<img>` tag
+  - Support for multiple **module shapes** (see [Shapes](#shape))
+  - Adjustable **quiet zone margin**
+- Supports **custom named QR configurations** under `[preprocessor.qr.custom.*]`  (see [Custom Configuration](#custom-configuration-overview))
+- Defaults to `[output.html].site-url` if `url` is not specified
 
 ---
 
@@ -45,29 +46,28 @@ From crates.io:
 cargo install mdbook-qr
 ```
 
-From source (in this repo):
+From source (in this repository):
 
 ```sh
 cargo install --path .
 ```
 
-Ensure the `mdbook-qr` binary is on your `PATH`.
+Ensure the `mdbook-qr` binary is available on your `PATH`.
 
 ---
 
-## Quick start
+## Quick Start
 
-In your `book.toml`:
+Add to your `book.toml`:
 
 ```toml
 [preprocessor.qr]
 enable = true
 url = "https://example.com"
 qr-path = "src/qr.png"
-margin = 4
+margin = 2
 background = "#FFFFFFFF"
-module =  "#000000FF"
-shape.cirle = true
+module = "#000000FF"
 
 [preprocessor.qr.fit]
 width = 256
@@ -77,13 +77,13 @@ height = 256
 circle = true
 ```
 
-Then, in any chapter Markdown file, add the marker:
+Then, in any Markdown file:
 
 ```md
 {{QR_CODE}}
 ```
 
-On build, it becomes:
+During the build, this is replaced with:
 
 ```html
 <img src="./qr.png" alt="QR code" style="width:256px;height:256px;" loading="eager">
@@ -91,79 +91,146 @@ On build, it becomes:
 
 ---
 
-## Configuration overview
+## Configuration Overview
 
-All options are read from `[preprocessor.qr]` and sub-tables.
+All options are read from `[preprocessor.qr]` and its sub-tables.
 
 | Key | Type | Description | Default |
 |-----|------|--------------|----------|
-| `enable` | bool | Enables or disables the preprocessor | `true` |
+| `enable` | bool | Enable or disable the preprocessor | `true` |
+| `marker` | string | the marker where `<img>` is injectd| `{{QR_CODE}}`|
 | `url` | string | The URL or text to encode | *(required)* |
-| `qr-path` | string | Relative path to the output PNG, absolute path is resolved automatically | `"src/mdbook-qr-code.png"` |
-| `margin` | integer | Quiet zone around the QR (in modules) | `2` |
-| `shape` | table | Boolean flags defining the QR module shape (see below) | `{ square = true }` |
-| `background`  | string | Hex represenation of color, can have alpha| `"#BBBB1222"` or `[187, 187, 18, 133]` | 
-| `module`  | string | Hex represenation of color, can have alpha| `"#FFFFFFFF"` or `[255, 255, 255, 255]` | 
-| `shape`| bool |
+| `qr-path` | string | Relative or absolute path to the output PNG | `"qr/mdbook-qr-code.png"` |
+| `margin` | integer | Quiet zone around the QR code (in modules) | `2` |
+| `background` | string | Hex color (`#RRGGBBAA`,`#RRGGBB`,`[RRR,GGG,BBB,AAA]`,`[RRR,GGG,BBB]` supported) | `"#FFFFFFFF"` |
+| `module` | string | Hex color (`#RRGGBBAA`,`#RRGGBB`,`[RRR,GGG,BBB,AAA]`,`[RRR,GGG,BBB]` supported) | `"#00000000"`  |
+| `shape` | table | Boolean flags defining the QR module shape | `{ square = true }` |
 
-### Fit (image size)
+>[!IMPORTANT]
+> - `enable = false` does not delete any qr codes images
+> - `marker` is defaulted to `{{QR_CODE}}` and cannot explicitly be set to anything else. If you want to use your own marker then create a `custom.*` sub-table, see [Custom Configurations](#configuration-overview) 
+
+### Fit (Image Size)
 
 ```toml
 [preprocessor.qr.fit]
 width = 200
 height = 200
 ```
-If only one dimension is given, it is mirrored for the other.
+If only one dimension is provided, the same value is used for the other.
 
-### Shape
+---
+
+## Shape
 
 ```toml
 [preprocessor.qr.shape]
 square = true
-circle = true        # supersedes square as it overides square
+circle = true
 rounded_square = true
 vertical = true
 horizontal = true
 diamond = true
 ```
-Heirarchy:
-- `square` is default if none supplied
-- Then precedence (first `true` wins):  
-  - **circle → rounded_square → vertical → horizontal → diamond → sqaure**
 
->[!NOTE]
-> `mdbook-qr` has not implemented `fast_qr::convert::Shape::Command` for custom shapes. 
+**Shape Precedence (first `true` wins):**
 
----
+> `circle → rounded_square → vertical → horizontal → diamond → square`
 
-## URL resolution
+If none are supplied, **square** is used.
 
-If `url` is omitted, it is resolved automatically from:
-
-- GitHub Actions `env` variable `GITHUB_REPOSITORY` →` https://{owner}.github.io/{repo}` (useful in CI/CD builds)
+> [!NOTE]  
+> `fast_qr::convert::Shape::Command` (for custom procedural shapes) is not yet implemented.
 
 ---
 
-## Example outputs
+## URL Resolution
+
+If `url` is omitted,this is includes `custom.*` sub-table, `mdbook-qr` resolves it automatically from:
+
+- GitHub Actions environment variable `GITHUB_REPOSITORY`, producing:
+    
+  - `https://{owner}.github.io/{repo}`
+
+  >[!NOTE]
+  > You can always set an env variable locally to test CI and your `QR_Code`
+  > - `export GIT_REPOSITORY="owner/repo"`
+  >    
+  > To unexport the env use `unset`
+  > - `unset GIT_REPOSITORY`
+
+---
+
+## Custom Configurations
+
+Custom QR definitions allow you to create **named styles** that inherit values from the main `[preprocessor.qr]` table.  
+
+These are declared under `[preprocessor.qr.custom.*]` as a sub-table.
+
+Each named sub-table inherits **all** parent values unless explicitly overridden, accept `marker`.
+
+```toml
+[preprocessor.qr]
+url = "https://default.example.com"
+margin = 2
+background = "#FFFFFFFF"
+module = "#000000FF"
+
+[preprocessor.qr.custom.footer]
+marker = "{{QR_FOOTER}}"
+url = "https://github.com/CompEng0001"
+qr-path = "src/footer-qr.png"
+fit.width = 128
+fit.height = 128
+shape.diamond = true
+
+[preprocessor.qr.custom.slide]
+marker = "{{QR_SLIDE}}"
+url = "https://slides.example.com"
+module = "#22AAFFFF"
+background = "#00000000"
+shape.circle = true
+```
+
+>[!IMPORTANT]
+> The `custom.*` sub-table only generates a QR code when:
+> - When the `marker` is defined and placed in a document
+> - If URL not defined then the sub-table will inherit from default
+> - If `qr-path` is not defined then default will be `qr_codes/qr-code.png` 
+
+### Custom Configuration Overview
+
+All configurations are inheritted if not explicitly set in the sub-table. It is 
+
+| Key | Type | Description | Example |
+|-----|------|--------------|----------|
+| `preprocessor.qr.custom.marker` | string | Placeholder text used in Markdown | `"{{QR_CUSTOM}}"` |
+
+Based on the configuration in [Custom Configurations](#custom-configurations) you would use these markers in your Markdown files:
+
+```md
+{{QR_FOOTER}}
+{{QR_SLIDE}}
+```
+
+Each marker corresponds to its respective `[preprocessor.qr.custom.*]` block.  
+If a marker (e.g. `{{QR_FOOTER}}`) is not defined, it falls back to the base `[preprocessor.qr]` configuration.
+
+---
+
+## Example Outputs
 
 ![square QR](docs/qr-square.png) ![diamond QR](docs/qr-diamond.png) ![rounded circle transparent blueish QR](docs/qr-rounded-circle-transparent-blueish.png)
 
 ```html
 <img src="./qr.png" alt="QR code" style="width:200px;height:200px;" loading="eager">
 ```
----
-
-## Compatibility
-
-- Tested with **mdBook 0.4.x**
-- Renderer support: **html**
-- Requires Rust 1.70 or newer
 
 ---
 
 ## License
 
-[MIT](LICENSE.md)
+Licensed under the [MIT License](LICENSE.md)
 
 ---
 
