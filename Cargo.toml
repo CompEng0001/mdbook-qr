@@ -1,6 +1,6 @@
 [package]
 name = "mdbook-qr"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 authors = ["Seb Blair <s.blair@gre.ac.uk>"]
 description = "An mdBook preprocessor that generates a QR code using fast_qr."
