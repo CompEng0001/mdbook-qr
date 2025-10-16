@@ -29,7 +29,7 @@ It produces a PNG image during the build and replaces {{QR_CODE}} markers in cha
 - Generates a **PNG QR code** using <code>fast-qr</code>.
 - Inserts the image automatically wherever `{{QR_CODE}}` appears.
 - Supports module **shapes** (see [shapes](#shapes)) .
-- Adjustable **quiet zone margin** and **RGBA colors**.
+- Adjustable **quiet zone margin** and **RGB\<A\> colors**.
 - Optional **fit width/height** for injected `<img>` tags.
 - **Idempotent**: reuses identical images to avoid triggering rebuild loops.
 - Defaults to `site-url` when no URL is set.
@@ -102,10 +102,8 @@ All options are read from `[preprocessor.qr]` and sub-tables.
 | `qr-path` | string | Relative path to the output PNG, absolute path is resolved automatically | `"src/mdbook-qr-code.png"` |
 | `margin` | integer | Quiet zone around the QR (in modules) | `2` |
 | `shape` | table | Boolean flags defining the QR module shape (see below) | `{ square = true }` |
-| `background-rgba` | array[u8;4] | RGBA background color | `[255,255,255,255]` |
-| `module-rgba` | array[u8;4] | RGBA module color | `[0,0,0,0]` |
-| `background`  | string | Hex represenation of color, can have alpha| `"#BBBB1222"`| 
-| `module`  | string | Hex represenation of color, can have alpha| `"#FFFFFFFF"`| 
+| `background`  | string | Hex represenation of color, can have alpha| `"#BBBB1222"` or `[187, 187, 18, 133]` | 
+| `module`  | string | Hex represenation of color, can have alpha| `"#FFFFFFFF"` or `[255, 255, 255, 255]` | 
 | `shape`| bool |
 
 ### Fit (image size)
@@ -142,8 +140,7 @@ Heirarchy:
 
 If `url` is omitted, it is resolved automatically from:
 
-1. `[output.html].site-url` (if present in `book.toml`)
-2. GitHub Actions `GITHUB_REPOSITORY` →` https://{owner}.github.io/{repo}` (useful in CI/CD builds)
+- GitHub Actions `env` variable `GITHUB_REPOSITORY` →` https://{owner}.github.io/{repo}` (useful in CI/CD builds)
 
 ---
 

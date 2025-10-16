@@ -5,6 +5,18 @@ use fast_qr::convert::{Shape, Color};
 use std::collections::{BTreeMap, HashSet};
 use log::warn;
 
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum FailureMode {
+    Continue,
+    Bail,
+}
+
+impl Default for FailureMode {
+    fn default() -> Self { FailureMode::Continue }
+}
+
 /// Flexible color input accepted in TOML: hex string or RGB/RGBA arrays.
 ///
 /// Examples:
@@ -82,27 +94,38 @@ pub struct Profile {
     pub shape: ShapeFlags,
     pub background: Option<ColorCfg>,
     pub module: Option<ColorCfg>,
-    pub background_rgba: Option<[u8; 4]>,
-    pub module_rgba: Option<[u8; 4]>,
 }
 
 impl Profile {
-    pub fn is_enabled(&self) -> bool { self.enable.unwrap_or(true) }
-    pub fn background_color(&self) -> Option<Color> {
-        if let Some(c) = &self.background { Some(c.to_color()) } else { self.background_rgba.map(Color::from) }
+    #[inline]
+    pub fn is_enabled(&self) -> bool {
+        self.enable.unwrap_or(true)
     }
+
+    /// Resolve the effective background color (from the flexible `background` field).
+    #[inline]
+    pub fn background_color(&self) -> Option<Color> {
+        self.background.as_ref().map(|c| c.to_color())
+    }
+
+    /// Resolve the effective module (foreground) color (from the flexible `module` field).
+    #[inline]
     pub fn module_color(&self) -> Option<Color> {
-        if let Some(c) = &self.module { Some(c.to_color()) } else { self.module_rgba.map(Color::from) }
+        self.module.as_ref().map(|c| c.to_color())
     }
 }
-
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct QrConfig {
     pub enable: Option<bool>,
     pub url: Option<String>,
-    pub qr_path: Option<String>,      // applies to default profile only
-
+    pub qr_path: Option<String>,            // default profile only
+    #[serde(default)]
+    pub on_failure: FailureMode,            // <-- NEW field (default Continue)
+    
+    #[serde(default)]
+    pub include_default: bool,    // <— NEW (default true)
+    
     #[serde(default)]
     pub fit: FitConfig,
     pub margin: Option<u32>,
@@ -110,12 +133,11 @@ pub struct QrConfig {
     pub shape: ShapeFlags,
     pub background: Option<ColorCfg>,
     pub module: Option<ColorCfg>,
-    pub background_rgba: Option<[u8; 4]>,
-    pub module_rgba: Option<[u8; 4]>,
 
-    /// Named subtables: [preprocessor.qr.custom.<name>]
+    // if you’re using named subtables: BTreeMap<String, Profile>
+    // or if you’re using array-of-tables: Vec<Profile>
     #[serde(default)]
-    pub custom: BTreeMap<String, Profile>,
+    pub custom: std::collections::BTreeMap<String, Profile>,
 }
 
 impl Default for QrConfig {
@@ -124,14 +146,14 @@ impl Default for QrConfig {
             enable: Some(true),
             url: None,
             qr_path: None,
+            on_failure: FailureMode::Continue,
+            include_default: true,
             fit: FitConfig::default(),
             margin: Some(2),
             shape: ShapeFlags::default(),
             background: Some(ColorCfg::Hex("#FFFFFFFF".into())),
             module:     Some(ColorCfg::Hex("#000000FF".into())),
-            background_rgba: None,
-            module_rgba: None,
-            custom: BTreeMap::new(),
+            custom: Default::default(),
         }
     }
 }
@@ -151,13 +173,12 @@ impl QrConfig {
             shape: self.shape.clone(),
             background: self.background.clone(),
             module: self.module.clone(),
-            background_rgba: self.background_rgba,
-            module_rgba: self.module_rgba,
         }
     }
 
     /// Inherit missing presentation fields from `base`. Marker & qr_path do NOT inherit.
-    fn inherit(base: &Profile, child: &Profile) -> Profile {
+    pub(crate) fn inherit(base: &Profile, child: &Profile) -> Profile {
+
         Profile {
             marker: child.marker.clone(),
             qr_path: child.qr_path.clone(),
@@ -171,8 +192,6 @@ impl QrConfig {
             shape: if child.shape.any_set() { child.shape.clone() } else { base.shape.clone() },
             background: child.background.clone().or_else(|| base.background.clone()),
             module: child.module.clone().or_else(|| base.module.clone()),
-            background_rgba: child.background_rgba.or(base.background_rgba),
-            module_rgba: child.module_rgba.or(base.module_rgba),
         }
     }
 
@@ -189,7 +208,10 @@ impl QrConfig {
     pub fn profiles(&self) -> Vec<Profile> {
         let base = self.default_profile();
         let mut out = Vec::with_capacity(1 + self.custom.len());
-        out.push(base.clone());
+
+        if self.include_default {
+            out.push(base.clone());
+        }
         for (_name, p) in &self.custom {
             if p.marker.is_some() {
                 out.push(Self::inherit(&base, p));

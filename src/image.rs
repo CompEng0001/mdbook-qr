@@ -1,13 +1,8 @@
 use anyhow::{anyhow, Context, Result};
-use fast_qr::convert::{image::ImageBuilder,Builder, Color, Shape};
+use fast_qr::convert::{image::ImageBuilder, Builder, Color, Shape};
 use fast_qr::qr::QRBuilder;
-use std::{
-    fs,
-    io::Write,
-    path::{Path, PathBuf},
-};
+use std::{fs, io::Write, path::{Path, PathBuf}};
 
-/// Generate QR PNG at `root.join(qr_rel)`; enforce .png; idempotent write.
 pub fn write_qr_png(
     url: &str,
     root: &Path,
@@ -18,8 +13,10 @@ pub fn write_qr_png(
     shape: Option<Shape>,
     background: Option<Color>,
     module: Option<Color>,
-) -> Result<PathBuf> {
-    let qrcode = QRBuilder::new(url).build().map_err(|e| anyhow!("QR build error: {e:?}"))?;
+) -> Result<(PathBuf, String)> {
+    let qrcode = QRBuilder::new(url)
+        .build()
+        .map_err(|e| anyhow!("QR build error: {e:?}"))?;
 
     let mut out = root.join(qr_rel);
     if out.extension().and_then(|s| s.to_str()).unwrap_or("").to_ascii_lowercase() != "png" {
@@ -31,25 +28,30 @@ pub fn write_qr_png(
 
     let mut builder = ImageBuilder::default();
     builder.margin(margin as usize).fit_width(fit_w).fit_height(fit_h);
-    if let Some(s)  = shape      { builder.shape(s); }
+    if let Some(s) = shape      { builder.shape(s); }
     if let Some(bg) = background { builder.background_color(bg); }
     if let Some(fg) = module     { builder.module_color(fg); }
 
-    let bytes = builder.to_bytes(&qrcode).map_err(|e| anyhow!("PNG encode: {e}"))?;
+    let bytes = builder
+        .to_bytes(&qrcode)
+        .map_err(|e| anyhow!("PNG encode: {e}"))?;
+
     let _changed = write_if_changed(&out, &bytes)?;
-    Ok(out)
+    let hash = blake3::hash(&bytes).to_hex()[..12].to_string();
+    Ok((out, hash))
 }
 
 fn write_if_changed(path: &Path, bytes: &[u8]) -> Result<bool> {
     if let Ok(existing) = fs::read(path) {
-        if existing == bytes { return Ok(false); }
+        if existing == bytes {
+            return Ok(false);
+        }
     }
     let parent = path.parent().unwrap_or_else(|| Path::new("."));
     let tmp = parent.join(format!(
         ".{}.tmp",
         path.file_name().and_then(|s| s.to_str()).unwrap_or("qr-image")
     ));
-
     {
         let mut f = fs::File::create(&tmp).with_context(|| format!("Creating {}", tmp.display()))?;
         f.write_all(bytes).with_context(|| format!("Writing {}", tmp.display()))?;

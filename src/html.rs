@@ -12,7 +12,8 @@ pub fn inject_marker_relative(
     qr_rel_under_src: &Path,
     fit_h: u32,
     fit_w: u32,
-) -> Result<()> {
+    cache_bust: Option<&str>,  // NEW
+) -> anyhow::Result<()> {
     for section in book.sections.iter_mut() {
         if let BookItem::Chapter(ch) = section {
             if !ch.content.contains(marker) { continue; }
@@ -32,6 +33,11 @@ pub fn inject_marker_relative(
                     rel_str = format!("./{}", rel_str);
                 } else if rel_str.starts_with('/') {
                     rel_str = rel_str.trim_start_matches('/').to_string();
+                }
+
+                if let Some(v) = cache_bust {
+                    if rel_str.contains('?') { rel_str.push_str(&format!("&v={v}")); }
+                    else { rel_str.push_str(&format!("?v={v}")); }
                 }
 
                 let mut style = String::new();
