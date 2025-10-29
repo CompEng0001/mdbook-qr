@@ -22,6 +22,8 @@ An [mdBook](https://github.com/rust-lang/mdBook) preprocessor that generates and
 
 It produces a PNG image during the build and replaces `{{QR_CODE}}` markers in chapters with an `<img>` tag pointing to the generated QR code.
 
+Read the documentation [here](https://compeng0001.github.io/mdbook-qr), to see the actual examples in action.
+
 ---
 
 ## Features
@@ -87,138 +89,9 @@ During the build, this is replaced with:
 <img src="./qr.png" alt="QR code" style="width:256px;height:256px;" loading="eager">
 ```
 
----
+...and rendered as:
 
-## Configuration Overview
-
-All options are read from `[preprocessor.qr]` and its sub-tables.
-
-| Key | Type | Description | Default |
-|-----|------|--------------|----------|
-| `enable` | bool | Enable or disable the preprocessor | `true` |
-| `marker` | string | the marker where `<img>` is injectd| `{{QR_CODE}}`|
-| `url` | string | The URL or text to encode | *(required)* |
-| `qr-path` | string | Relative or absolute path to the output PNG | `"qr/mdbook-qr-code.png"` |
-| `margin` | integer | Quiet zone around the QR code (in modules) | `2` |
-| `background` | string | Hex color (`#RRGGBBAA`,`#RRGGBB`,`[RRR,GGG,BBB,AAA]`,`[RRR,GGG,BBB]` supported) | `"#FFFFFFFF"` |
-| `module` | string | Hex color (`#RRGGBBAA`,`#RRGGBB`,`[RRR,GGG,BBB,AAA]`,`[RRR,GGG,BBB]` supported) | `"#000000FF"`  |
-| `shape` | table | Boolean flags defining the QR module shape | `{ square = true }` |
-
->[!IMPORTANT]
-> - `marker` is defaulted to `{{QR_CODE}}` and cannot explicitly be set to anything else. If you want to use your marker then create a `custom.*` sub-table, see [Custom Configurations](#configuration-overview) 
-
-### Fit (Image Size)
-
-```toml
-[preprocessor.qr.fit]
-width = 200
-height = 200
-```
-If only one dimension is provided, the same value is used for the other.
-
----
-
-## Shape
-
-```toml
-[preprocessor.qr.shape]
-square = true
-circle = true
-rounded_square = true
-vertical = true
-horizontal = true
-diamond = true
-```
-
-**Shape Precedence (first `true` wins):**
-
-> `circle → rounded_square → vertical → horizontal → diamond → square`
-
-If none are supplied, **square** is used.
-
-> [!NOTE]  
-> `fast_qr::convert::Shape::Command` (for custom procedural shapes) is not yet implemented.
-
----
-
-## URL Resolution
-
-If `url` is omitted, `mdbook-qr` resolves it automatically from:
-
-- GitHub Actions environment variable `GITHUB_REPOSITORY`, producing:  
-  
-  - `https://{owner}.github.io/{repo}`
-
-  >[!NOTE]
-  > You can always set an env variable locally to test CI
-  > - `export GIT_REPOSITORY="owner/repo"`
-  >    
-  > To `unset`
-  > - `unset GIT_REPOSITORY`
-
----
-
-## Custom Configurations
-
-Custom QR definitions allow you to create **named styles** that inherit values from the main `[preprocessor.qr]` table.  
-
-These are declared under `[preprocessor.qr.custom.*]` as a sub-table.
-
-Each named sub-table inherits **all** parent values unless explicitly overridden, accept `marker`.
-
-```toml
-[preprocessor.qr]
-url = "https://default.example.com"
-margin = 2
-background = "#FFFFFFFF"
-module = "#000000FF"
-
-[preprocessor.qr.custom.footer]
-marker = "{{QR_FOOTER}}"
-url = "https://github.com/CompEng0001"
-qr-path = "src/footer-qr.png"
-fit.width = 128
-fit.height = 128
-shape.diamond = true
-
-[preprocessor.qr.custom.slide]
-marker = "{{QR_SLIDE}}"
-url = "https://slides.example.com"
-module = "#22AAFFFF"
-background = "#00000000"
-shape.circle = true
-```
-
->[!IMPORTANT]
-> The `custom.*` sub-table only generates a QR code when:
-> - When the `marker` is defined and placed in a document
-> - If URL not defined then the sub-table will inherit from default
-> - If `qr-path` is not defined then default will be `qr_codes/qr-code.png` 
-
-### Custom Configuration Overview
-
-| Key | Type | Description | Example |
-|-----|------|--------------|----------|
-| `preprocessor.qr.custom.marker` | string | Placeholder text used in Markdown | `"{{QR_CUSTOM}}"` |
-
-Based on the configuration in [Custom Configurations](#custom-configurations) you would use these markers in your Markdown files:
-
-```md
-{{QR_FOOTER}}
-{{QR_SLIDE}}
-```
-
-Each marker corresponds to its respective `[preprocessor.qr.custom.*]` block.  
-
----
-
-## Example Outputs
-
-![square QR](docs/qr-square.png) ![diamond QR](docs/qr-diamond.png) ![rounded circle transparent blueish QR](docs/qr-rounded-circle-transparent-blueish.png)
-
-```html
-<img src="./qr.png" alt="QR code" style="width:200px;height:200px;" loading="eager">
-```
+![](docs/book/figures/qr-square.png)
 
 ---
 
