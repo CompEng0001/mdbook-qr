@@ -214,7 +214,7 @@ Each marker corresponds to its respective `[preprocessor.qr.custom.*]` block.
 
 ## Example Outputs
 
-![square QR](docs/qr-square.png) ![diamond QR](docs/qr-diamond.png) ![rounded circle transparent blueish QR](docs/qr-rounded-circle-transparent-blueish.png)
+![square QR](docs/src/figures/qr-square.png) ![diamond QR](docs/src/figures/qr-diamond.png) ![rounded circle transparent blueish QR](docs/src/figures/qr-rounded-circle-transparent-blueish.png)
 
 ```html
 <img src="./qr.png" alt="QR code" style="width:200px;height:200px;" loading="eager">

@@ -2,6 +2,151 @@ use mdbook::book::{Book, BookItem};
 use pathdiff::diff_paths;
 use std::path::{Path, PathBuf};
 
+
+/// Replace `marker` with `replacement` in `content`, but:
+/// - Do NOT replace inside fenced code blocks (``` or ~~~).
+/// - Still allow replacement inside `~~~admonish ... ~~~` blocks (treated as normal text).
+/// - Do NOT replace inside inline code spans enclosed by backticks (`...` or ```` ... ````).
+fn replace_markers_outside_code(content: &str, marker: &str, replacement: &str) -> String {
+    let mut out = String::with_capacity(content.len());
+
+    // Fence tracking
+    let mut in_fence = false;
+    let mut fence_char = '\0';
+    let mut fence_len: usize = 0;
+
+    // Utility: detect a fence line and return (is_fence, fence_char, fence_len, info_string)
+    fn parse_fence(line: &str) -> Option<(char, usize, &str)> {
+        // Allow up to 3 leading spaces per CommonMark
+        let trimmed_lead = line.strip_prefix("   ")
+            .or_else(|| line.strip_prefix("  "))
+            .or_else(|| line.strip_prefix(" "))
+            .unwrap_or(line);
+
+        let bytes = trimmed_lead.as_bytes();
+        if bytes.is_empty() { return None; }
+
+        let first = bytes[0] as char;
+        if first != '`' && first != '~' {
+            return None;
+        }
+
+        // Count run length of the same char
+        let mut i = 0;
+        while i < bytes.len() && (bytes[i] as char) == first {
+            i += 1;
+        }
+        if i < 3 {
+            return None;
+        }
+
+        // Info string after the fence run (can be empty)
+        let info = &trimmed_lead[i..];
+        Some((first, i, info))
+    }
+
+    // Replace marker in a *single line* but skip inline code spans marked by backticks.
+    fn replace_outside_inline_code(line: &str, marker: &str, repl: &str) -> String {
+        let mut result = String::with_capacity(line.len());
+        let mut i = 0;
+        let bytes = line.as_bytes();
+
+        // Tracks active inline code span delimited by N backticks
+        let mut inline_bt_count: Option<usize> = None;
+
+        while i < bytes.len() {
+            // If we see a backtick run, either open or close an inline span
+            if bytes[i] == b'`' {
+                // Count backticks
+                let mut j = i + 1;
+                while j < bytes.len() && bytes[j] == b'`' { j += 1; }
+                let count = j - i;
+
+                // Copy them verbatim
+                result.push_str(&line[i..j]);
+
+                match inline_bt_count {
+                    None => inline_bt_count = Some(count),            // open
+                    Some(open) if open == count => inline_bt_count = None, // close
+                    _ => { /* mismatched counts → treat as raw */ }
+                }
+                i = j;
+                continue;
+            }
+
+            // If not inside inline code, we can attempt marker replacement
+            if inline_bt_count.is_none() {
+                if line[i..].starts_with(marker) {
+                    result.push_str(repl);
+                    i += marker.len();
+                    continue;
+                }
+            }
+
+            // Default: copy one char
+            result.push(bytes[i] as char);
+            i += 1;
+        }
+
+        result
+    }
+
+    for line in content.split_inclusive('\n') {
+        // We operate per physical line (including its trailing '\n')
+        // Use a copy without the trailing '\n' to parse fences cleanly
+        let (line_body, line_suffix_nl) = if line.ends_with('\n') {
+            (&line[..line.len() - 1], "\n")
+        } else {
+            (line, "")
+        };
+
+        // Check for a fence delimiter
+        if let Some((ch, run_len, info)) = parse_fence(line_body) {
+            // Is this a *closing* fence for the current one?
+            if in_fence {
+                if ch == fence_char && run_len >= fence_len {
+                    // Close the fence
+                    in_fence = false;
+                    fence_char = '\0';
+                    fence_len = 0;
+                }
+                // Copy the delimiter line as-is
+                out.push_str(line_body);
+                out.push_str(line_suffix_nl);
+                continue;
+            } else {
+                // Opening fence. Treat '~~~admonish ...' as NON-code fence:
+                let info_lower = info.trim().to_ascii_lowercase();
+                let is_admonish = info_lower.starts_with("admonish");
+
+                if !is_admonish {
+                    // Enter code fence
+                    in_fence = true;
+                    fence_char = ch;
+                    fence_len = run_len;
+                    out.push_str(line_body);
+                    out.push_str(line_suffix_nl);
+                    continue;
+                }
+                // For admonish, fall through (not a code fence): we still replace markers inside.
+            }
+        }
+
+        if in_fence {
+            // Inside a code fence → no replacement
+            out.push_str(line_body);
+            out.push_str(line_suffix_nl);
+        } else {
+            // Outside code fences → replace markers, but skip inline code spans
+            let replaced = replace_outside_inline_code(line_body, marker, replacement);
+            out.push_str(&replaced);
+            out.push_str(line_suffix_nl);
+        }
+    }
+
+    out
+}
+
 /// Replace all occurrences of `marker` with an <img> whose `src` is
 /// chapter-relative to `qr_rel_under_src`.
 pub fn inject_marker_relative(
@@ -50,7 +195,7 @@ pub fn inject_marker_relative(
                     rel = rel_str,
                     style = style
                 );
-                ch.content = ch.content.replace(marker, &img);
+                ch.content = replace_markers_outside_code(&ch.content, marker, &img);
             }
         }
     }

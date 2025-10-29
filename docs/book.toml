@@ -1,0 +1,44 @@
+[book]
+authors = ["CompEng0001"]
+language = "en"
+src = "src"
+title = "mdbook-qr"
+
+[output.html]
+git-repository-url = "https://github.com/compeng0001/mdbook-qr"
+edit-url-template = "https://github.com/compeng0001/mdbook-qr/edit/main/{path}"
+additional-css = ["theme/pagetoc.css"]
+additional-js  = ["theme/pagetoc.js"]
+
+[output.html.print]
+enable = false
+
+[preprocessor.alerts]
+enable = true
+
+[preprocessor.qr]
+enable = true
+qr-path = "figures/mdbook-qr-code.png"
+margin = 1
+shape.rectangle = true
+background = "#FFFFFFFF"
+module =  "#000000FF"
+
+[preprocessor.gitinfo]
+enable = true
+header = true
+footer = true
+message.header = "Last updated: <em>{{date}}</em>"
+message.footer = "branch: {{branch}} {{sep}} commit: {{hash}} {{sep}} tag: {{tag}}"
+align.header = "center"
+align.footer = "center"
+margin.header.top = "2em"
+margin.header.bottom = "2em"
+margin.footer = ["2em", "0", "0", "0"]
+font-size = "0.8em"
+separator = "||"
+date-format = "%A %d %B %Y"
+time-format = "@ %H:%M:%S"
+branch = "mdbook-docs"
+hyperlink = true
+
