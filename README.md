@@ -91,7 +91,7 @@ During the build, this is replaced with:
 
 ...and rendered as:
 
-![](docs/book/figures/qr-square.png)
+![](docs/src/figures/qr-square.png)
 
 ---
 

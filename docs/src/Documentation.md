@@ -236,6 +236,6 @@ shape.circle = true
 
 <div align=center>
 
-![square QR](../figures/qr-square.png) ![diamond QR](figures/qr-diamond.png) ![rounded circle transparent blueish QR](figures/qr-rounded-circle-transparent-blueish.png)
+![square QR](figures/qr-square.png) ![diamond QR](figures/qr-diamond.png) ![rounded circle transparent blueish QR](figures/qr-rounded-circle-transparent-blueish.png)
 
 </div>
