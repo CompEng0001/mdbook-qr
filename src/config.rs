@@ -82,7 +82,7 @@ pub struct Profile {
     pub marker: Option<String>,
     /// Optional explicit output path for this profile (rel to book src if not absolute).
     pub qr_path: Option<String>,
-
+    pub localhost_qr: Option<bool>,
     pub enable: Option<bool>,
     pub url: Option<String>,
     #[serde(default)]
@@ -116,6 +116,7 @@ impl Profile {
 #[serde(rename_all = "kebab-case")]
 pub struct QrConfig {
     pub enable: Option<bool>,
+    pub localhost_qr: Option<bool>,
     pub url: Option<String>,
     pub qr_path: Option<String>,
     #[serde(default)]
@@ -123,7 +124,6 @@ pub struct QrConfig {
     
     #[serde(default)]
     pub include_default: bool,
-    
     #[serde(default)]
     pub fit: FitConfig,
     pub margin: Option<u32>,
@@ -141,6 +141,7 @@ impl Default for QrConfig {
     fn default() -> Self {
         Self {
             enable: Some(true),
+            localhost_qr: Some(false),
             url: None,
             qr_path: None,
             on_failure: FailureMode::Continue,
@@ -160,9 +161,10 @@ impl QrConfig {
 
     pub fn default_profile(&self) -> Profile {
         Profile {
+            enable: self.enable,
+            localhost_qr: self.localhost_qr,
             marker: Some("{{QR_CODE}}".to_string()),
             qr_path: self.qr_path.clone(),
-            enable: self.enable,
             url: self.url.clone(),
             fit: self.fit.clone(),
             margin: self.margin,
@@ -176,9 +178,10 @@ impl QrConfig {
     pub(crate) fn inherit(base: &Profile, child: &Profile) -> Profile {
 
         Profile {
+            enable: child.enable.or(base.enable),
+            localhost_qr: child.localhost_qr.or(base.localhost_qr),
             marker: child.marker.clone(),
             qr_path: child.qr_path.clone(),
-            enable: child.enable.or(base.enable),
             url: child.url.clone().or_else(|| base.url.clone()),
             fit: FitConfig {
                 width: child.fit.width.or(base.fit.width),

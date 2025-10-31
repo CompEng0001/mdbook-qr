@@ -7,6 +7,9 @@ use std::collections::HashMap;
 use std::io;
 
 use crate::config::{FailureMode, QrConfig, Profile, FitConfig, ShapeFlags, ColorCfg};
+use crate::util::{ensure_gitignore_for_localhost,pass_fit_dims};
+use crate::image::{write_qr_png};
+use crate::html::inject_marker_relative;
 
 pub struct QrPreprocessor;
 impl QrPreprocessor {
@@ -61,8 +64,9 @@ fn load_custom_defaults(ctx: &PreprocessorContext) -> Option<Profile> {
         .as_table()?;
 
     let mut p = Profile {
-        marker: None,
         enable: None,
+        localhost_qr: None,
+        marker: None,
         url: None,
         qr_path: None,
         fit: FitConfig::default(),
@@ -75,6 +79,11 @@ fn load_custom_defaults(ctx: &PreprocessorContext) -> Option<Profile> {
     if let Some(v) = custom.get("enable").and_then(|v| v.as_bool()) {
         p.enable = Some(v);
     }
+ 
+    if let Some(v) = custom.get("localhost-qr").and_then(|v| v.as_bool()) {
+        p.localhost_qr = Some(v);
+    }
+ 
     if let Some(v) = custom.get("url").and_then(|v| v.as_str()) {
         p.url = Some(v.to_string());
     }
@@ -193,8 +202,11 @@ fn run_impl(ctx: &PreprocessorContext, book: &mut Book) -> Result<()> {
             continue;
         }
 
-        // Resolve URL (explicit -> env fallback)
-        let url = match crate::url::resolve_url(profile.url.as_deref()) {
+        // Resolve URL (explicit -> localhost-qr -> env fallback)
+        let url = match crate::url::resolve_url(
+            profile.url.as_deref(),
+            profile.localhost_qr.unwrap_or(false),
+        ) {
             Ok(u) => u,
             Err(_) => match on_failure {
                 FailureMode::Continue => {
@@ -215,10 +227,37 @@ fn run_impl(ctx: &PreprocessorContext, book: &mut Book) -> Result<()> {
             },
         };
 
-        // Relative output path (under book src)
-        let qr_rel_under_src = crate::util::resolve_profile_path(
-            &src_dir, profile.qr_path.as_deref(), marker,
-        );
+        // Decide mode up front
+        let is_localhost = profile.localhost_qr.unwrap_or(false);
+
+        //  Compute the normal path first (respects qr-path/marker)
+        let normal_rel = crate::util::resolve_profile_path(&src_dir, profile.qr_path.as_deref(), marker);
+
+        //  Safety guard ONLY for non-localhost runs:
+        //    If about to write to the derived default for the *default marker*
+        //    and the file already exists AND no explicit qr-path was given, skip to avoid clobbering.
+        if !is_localhost {
+            let derived_default = crate::util::derived_default_path(&src_dir, "{{QR_CODE}}");
+            if normal_rel == derived_default && profile.qr_path.is_none() {
+                let abs_candidate = ctx.root.join(&normal_rel);
+                if abs_candidate.exists() {
+                    warn!(
+                        "mdbook-qr: '{}' already exists; refusing to overwrite derived default. \
+                        Set an explicit `qr-path` for marker {} to proceed.",
+                        abs_candidate.display(), marker
+                    );
+                    continue;
+                }
+            }
+        }
+
+        // Pick the effective output path
+        let qr_rel_under_src = if is_localhost {
+            // {book.src}/mdbook-qr/qr_localhost.png
+            crate::util::localhost_fixed_path(&src_dir)
+        } else {
+            normal_rel
+        };
 
         // Warn on two markers mapping to same file
         if let Some(prev) = path_to_marker.insert(qr_rel_under_src.clone(), marker.clone()) {
@@ -231,32 +270,27 @@ fn run_impl(ctx: &PreprocessorContext, book: &mut Book) -> Result<()> {
             }
         }
 
-        // Safety guard: if writing to derived default file and it exists, require explicit qr-path
-        let derived_default = crate::util::derived_default_path(&src_dir, "{{QR_CODE}}");
-        if qr_rel_under_src == derived_default && profile.qr_path.is_none() {
-            let abs_candidate = ctx.root.join(&qr_rel_under_src);
-            if abs_candidate.exists() {
-                warn!(
-                    "mdbook-qr: '{}' already exists; refusing to overwrite derived default. \
-                     Set an explicit `qr-path` for marker {} to proceed.",
-                    abs_candidate.display(), marker
-                );
-                continue;
-            }
-        }
-
         // Render + inject
-        let (fit_w, fit_h) = crate::util::pass_fit_dims(&profile.fit);
+        let (fit_w, fit_h) = pass_fit_dims(&profile.fit);
         let margin = profile.margin.unwrap_or(2);
         let shape  = profile.shape.to_shape();
         let bg     = profile.background_color();
         let fg     = profile.module_color();
 
-        let (_abs_out, content_hash) = crate::image::write_qr_png(
+        let (_abs_out, content_hash) = write_qr_png(
             &url, &ctx.root, &qr_rel_under_src, fit_w, fit_h, margin, Some(shape), bg, fg,
         )?;
 
-        crate::html::inject_marker_relative(
+        // If localhost-qr is active, ensure .gitignore excludes this pattern.
+        if profile.localhost_qr.unwrap_or(false) {
+            match ensure_gitignore_for_localhost(&ctx.root, &src_dir) {
+                Ok(true) => log::info!("mdbook-qr: added glob to .gitignore for qr_localhost.png"),
+                Ok(false) => {},
+                Err(e) => log::warn!("mdbook-qr: could not update .gitignore: {e}"),
+            }
+        }
+
+        inject_marker_relative(
             book, marker, &src_dir, &qr_rel_under_src, fit_h, fit_w, Some(&content_hash),
         )?;
     }

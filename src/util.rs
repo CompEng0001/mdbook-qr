@@ -1,4 +1,7 @@
 use std::path::{Path, PathBuf};
+use anyhow::{Result, Context};
+use std::fs;
+use std::io::Write;
 use crate::config::FitConfig;
 
 pub const DEFAULT_SIZE: u32 = 200;
@@ -52,3 +55,47 @@ pub fn resolve_profile_path(src_dir: &Path, qr_path: Option<&str>, marker: &str)
         derived_default_path(src_dir, marker)
     }
 }
+
+/// Fixed dev path when `localhost-qr = true`:
+/// {book.src}/localhost/qr_localhost.png  (absolute, under repo root)
+pub fn localhost_fixed_path(src_dir: &Path) -> PathBuf {
+    src_dir.join("mdbook_qr").join("qr_localhost.png")
+}
+
+/// Ensure `.gitignore` has a glob ignoring:
+///    /{book.src}/**/mdbook_qr/qr_localhost.png
+/// Creates `.gitignore` if missing; idempotent.
+pub fn ensure_gitignore_for_localhost(root: &Path, src_dir: &Path) -> Result<bool> {
+    let gi_path = root.join(".gitignore");
+
+    // Compute repo-relative src path
+    let mut glob = format!("*{}/mdbook_qr/",
+        src_dir.to_string_lossy().replace('\\', "/"));
+
+    while glob.contains("//") {
+        glob = glob.replace("//", "/");
+    }
+
+    let mut contents = fs::read_to_string(&gi_path).unwrap_or_default();
+    if contents.lines().any(|l| l.trim() == glob) {
+        return Ok(false);
+    }
+    if !contents.is_empty() && !contents.ends_with('\n') {
+        contents.push('\n');
+    }
+    // Optional: tag for discoverability
+    contents.push_str("# mdbook-qr (localhost image)\n");
+    contents.push_str(&glob);
+    contents.push('\n');
+
+    let mut f = fs::OpenOptions::new()
+        .create(true)
+        .write(true)
+        .truncate(true)
+        .open(&gi_path)
+        .with_context(|| format!("opening {}", gi_path.display()))?;
+    f.write_all(contents.as_bytes())
+        .with_context(|| format!("writing {}", gi_path.display()))?;
+    Ok(true)
+}
+

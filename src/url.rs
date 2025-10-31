@@ -7,12 +7,13 @@ fn is_abs_http(u: &str) -> bool {
     lu.starts_with("http://") || lu.starts_with("https://")
 }
 
-/// Resolve URL in this order (site-url intentionally ignored):
+/// Resolve URL (site-url intentionally ignored):
 /// 1) explicit profile url (preprocessor.qr.url or custom profile url)
 /// 2) CI fallback from GITHUB_REPOSITORY -> https://{owner}.github.io/{repo}
-pub fn resolve_url(configured: Option<&str>) -> Result<String> {
+/// 3) localhost-qr flag -> http://127.0.0.1:3000/
+pub fn resolve_url(url: Option<&str>, localhost_qr: bool) -> Result<String> {
     // 1) explicit preprocessor url wins
-    if let Some(u) = configured {
+    if let Some(u) = url {
         if !is_abs_http(u) {
             warn!("preprocessor.qr.url is not absolute ('{}'); QR will encode it as-is", u);
         }
@@ -29,8 +30,10 @@ pub fn resolve_url(configured: Option<&str>) -> Result<String> {
         }
     }
 
-    // 3) nothing found
-    Err(anyhow!(
-        "could not resolve a URL: set `preprocessor.qr.url` or export GITHUB_REPOSITORY"
-    ))
+    if localhost_qr {
+        let u = "http://127.0.0.1:3000/".to_string();
+        debug!("using localhost-qr fallback = {}", u);
+        return Ok(u);
+    }
+    Err(anyhow!("no URL configured and no viable fallback"))
 }
