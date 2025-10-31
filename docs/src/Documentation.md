@@ -8,6 +8,7 @@ All options are read from `[preprocessor.qr]` and its sub-tables.
 | Key | Type | Description | Default |
 |-----|------|--------------|----------|
 | `enable` | bool | Enable or disable the preprocessor | `true` |
+| `localhost-qr` | bool | For UX proposes you generate a placeholder qr code from localhost | `false` |
 | `marker` | string | the marker where `<img>` is injectd| `{{QR_CODE}}`|
 | `url` | string | The URL or text to encode | `GITHUB_REPOSITORY` |
 | `qr-path` | string | Relative or absolute path to the output PNG | `"qr/mdbook-qr-code.png"` |
@@ -19,8 +20,34 @@ All options are read from `[preprocessor.qr]` and its sub-tables.
 
 <br>
 
+### 1.1 Localhost QR
 
-### 1.1 Marker
+*new for v0.1.3*
+
+When building locally with `mdbook serve`, you can enable a development-only QR mode that points to your local preview server instead of the deployed GitHub Pages site.
+
+```toml
+[preprocessor.qr]
+enable = true
+localhost-qr = true
+```
+
+When `localhost-qr = true`:
+
+- All generated QR codes encode `http://127.0.0.1:3000/` (the default mdbook serve address).
+
+- The image is written to a fixed, predictable path, `{book.src}/mdbook-qr/qr_localhost.png`
+
+- The preprocessor automatically creates or updates your repository's `.gitignore` with `{book.src}/mdbook-qr/` ensuring the development image is never committed to Git.
+
+- CI/CD or production builds use normal behaviour, see [URL Resolution](#13-url-resolution) section for more details.
+
+
+> [!TIP]
+> This mode provides a seamless local preview experience while keeping your repository clean.
+> For example, `mdbook serve` at `http://127.0.0.1:3000/` will display valid QR codes pointing to your local preview pages.
+
+### 1.2 Marker
 
 The `marker` where `<img>` is injectd
 
@@ -31,11 +58,13 @@ The `marker` where `<img>` is injectd
 > [!IMPORTANT]
 > - `marker` is defaulted to `{{QR_CODE}}` and cannot explicitly be set to anything else. If you want to use your marker then create a `custom.*` sub-table, see [Custom Configurations](#2-custom-configurations) section.
 
-### 1.2 URL Resolution
+### 1.3 URL Resolution
 
-If `url` is omitted, `mdbook-qr` resolves it automatically from GitHub Actions environment variable `GITHUB_REPOSITORY`, producing:  
+If `url` is omitted, and you are in CI environment `mdbook-qr` resolves it automatically from GitHub Actions environment variable `GITHUB_REPOSITORY`, producing:  
   
   - `https://{owner}.github.io/{repo}`
+
+If you are local enable the `localhost-qr` option, see [Localhost QR](#11-localhost-qr) section for me information.
 
 ```toml
 [preprocessor.qr]
@@ -49,7 +78,7 @@ url = "https://compeng0001.github.io/mdbook-qr"
 > To `unset`
 > - `unset GITHUB_REPOSITORY`
 
-### 1.3 QR Path
+### 1.4 QR Path
 
 `qr-path` can be relative or absolute path to the output PNG.
 
@@ -61,7 +90,7 @@ url = "https://compeng0001.github.io/mdbook-qr"
 qr-path = "/path/to/qr_code.png
 ```
 
-### 1.4 Margin
+### 1.5 Margin
 
 Quiet zone around the QR code (in modules)
 
@@ -70,7 +99,7 @@ Quiet zone around the QR code (in modules)
 margin = 2
 ```
 
-### 1.5 Fit (Image Size)
+### 1.6 Fit (Image Size)
 
 `fit` can be used to specify the size/dimensions of the qr code. The default is `fit.width = 200` which is mirrored to `fit.height = 200`
 
@@ -83,7 +112,7 @@ height = 300
 If only one dimension is provided, the same value is used for the other.
 
 
-### 1.6 Background
+### 1.7 Background
 
 The colour of the background for the qr code:
 
@@ -99,7 +128,7 @@ The colour of the background for the qr code:
 background = "#FFFFFF"
 ```
 
-### 1.7 Module
+### 1.8 Module
 
 The colour of the module for the qr code:
 
@@ -115,7 +144,7 @@ The colour of the module for the qr code:
 module = "#000000"
 ```
 
-### 1.8 Shape
+### 1.9 Shape
 
 Boolean flags defining the QR module shape
 
