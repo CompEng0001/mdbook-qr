@@ -49,47 +49,53 @@ fn replace_markers_outside_code(content: &str, marker: &str, replacement: &str) 
     fn replace_outside_inline_code(line: &str, marker: &str, repl: &str) -> String {
         let mut result = String::with_capacity(line.len());
         let mut i = 0;
-        let bytes = line.as_bytes();
+        let line_bytes = line.as_bytes();
 
         // Tracks active inline code span delimited by N backticks
         let mut inline_bt_count: Option<usize> = None;
 
-        while i < bytes.len() {
-            // If we see a backtick run, either open or close an inline span
-            if bytes[i] == b'`' {
-                // Count backticks
-                let mut j = i + 1;
-                while j < bytes.len() && bytes[j] == b'`' { j += 1; }
-                let count = j - i;
+        while i < line.len() {
+            // SAFETY: i is always maintained at a char boundary
+            let ch = line[i..].chars().next().unwrap();
+            let ch_len = ch.len_utf8();
 
-                // Copy them verbatim
+            if ch == '`' {
+                // Count a run of backticks. Backticks are ASCII => 1 byte each.
+                let mut j = i + ch_len; // i + 1
+                let mut count = 1;
+                while j < line.len() && line_bytes[j] == b'`' {
+                    j += 1;
+                    count += 1;
+                }
+
+                // Copy the whole backtick run verbatim
                 result.push_str(&line[i..j]);
 
                 match inline_bt_count {
-                    None => inline_bt_count = Some(count),            // open
-                    Some(open) if open == count => inline_bt_count = None, // close
+                    None => inline_bt_count = Some(count),            // open span
+                    Some(open) if open == count => inline_bt_count = None, // close span
                     _ => { /* mismatched counts → treat as raw */ }
                 }
+
                 i = j;
                 continue;
             }
 
             // If not inside inline code, we can attempt marker replacement
-            if inline_bt_count.is_none() {
-                if line[i..].starts_with(marker) {
-                    result.push_str(repl);
-                    i += marker.len();
-                    continue;
-                }
+            if inline_bt_count.is_none() && line[i..].starts_with(marker) {
+                result.push_str(repl);
+                i += marker.len(); // marker is ASCII, so byte-len is safe
+                continue;
             }
 
-            // Default: copy one char
-            result.push(bytes[i] as char);
-            i += 1;
+            // Default: copy this character as-is
+            result.push(ch);
+            i += ch_len;
         }
 
         result
     }
+
 
     for line in content.split_inclusive('\n') {
         // We operate per physical line (including its trailing '\n')
