@@ -2,7 +2,6 @@ use mdbook::book::{Book, BookItem};
 use pathdiff::diff_paths;
 use std::path::{Path, PathBuf};
 
-
 /// Replace `marker` with `replacement` in `content`, but:
 /// - Do NOT replace inside fenced code blocks (``` or ~~~).
 /// - Still allow replacement inside `~~~admonish ... ~~~` blocks (treated as normal text).
@@ -18,13 +17,16 @@ fn replace_markers_outside_code(content: &str, marker: &str, replacement: &str) 
     // Utility: detect a fence line and return (is_fence, fence_char, fence_len, info_string)
     fn parse_fence(line: &str) -> Option<(char, usize, &str)> {
         // Allow up to 3 leading spaces per CommonMark
-        let trimmed_lead = line.strip_prefix("   ")
+        let trimmed_lead = line
+            .strip_prefix("   ")
             .or_else(|| line.strip_prefix("  "))
             .or_else(|| line.strip_prefix(" "))
             .unwrap_or(line);
 
         let bytes = trimmed_lead.as_bytes();
-        if bytes.is_empty() { return None; }
+        if bytes.is_empty() {
+            return None;
+        }
 
         let first = bytes[0] as char;
         if first != '`' && first != '~' {
@@ -72,7 +74,7 @@ fn replace_markers_outside_code(content: &str, marker: &str, replacement: &str) 
                 result.push_str(&line[i..j]);
 
                 match inline_bt_count {
-                    None => inline_bt_count = Some(count),            // open span
+                    None => inline_bt_count = Some(count), // open span
                     Some(open) if open == count => inline_bt_count = None, // close span
                     _ => { /* mismatched counts → treat as raw */ }
                 }
@@ -95,7 +97,6 @@ fn replace_markers_outside_code(content: &str, marker: &str, replacement: &str) 
 
         result
     }
-
 
     for line in content.split_inclusive('\n') {
         // We operate per physical line (including its trailing '\n')
@@ -162,11 +163,13 @@ pub fn inject_marker_relative(
     qr_rel_under_src: &Path,
     fit_h: u32,
     fit_w: u32,
-    cache_bust: Option<&str>,  // NEW
+    cache_bust: Option<&str>, // NEW
 ) -> anyhow::Result<()> {
     for section in book.sections.iter_mut() {
         if let BookItem::Chapter(ch) = section {
-            if !ch.content.contains(marker) { continue; }
+            if !ch.content.contains(marker) {
+                continue;
+            }
 
             if let Some(ch_rel_path) = &ch.path {
                 let ch_abs = src_dir.join(ch_rel_path);
@@ -186,15 +189,24 @@ pub fn inject_marker_relative(
                 }
 
                 if let Some(v) = cache_bust {
-                    if rel_str.contains('?') { rel_str.push_str(&format!("&v={v}")); }
-                    else { rel_str.push_str(&format!("?v={v}")); }
+                    if rel_str.contains('?') {
+                        rel_str.push_str(&format!("&v={v}"));
+                    } else {
+                        rel_str.push_str(&format!("?v={v}"));
+                    }
                 }
 
                 let mut style = String::new();
                 let mut items: Vec<String> = Vec::new();
-                if fit_h > 0 { items.push(format!("height:{}px", fit_h)); }
-                if fit_w > 0 { items.push(format!("width:{}px", fit_w)); }
-                if !items.is_empty() { style = format!(r#" style="{}""#, items.join(";")); }
+                if fit_h > 0 {
+                    items.push(format!("height:{}px", fit_h));
+                }
+                if fit_w > 0 {
+                    items.push(format!("width:{}px", fit_w));
+                }
+                if !items.is_empty() {
+                    style = format!(r#" style="{}""#, items.join(";"));
+                }
 
                 let img = format!(
                     r#"<img src="{rel}" alt="QR code"{style} loading="eager">"#,

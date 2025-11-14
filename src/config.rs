@@ -1,8 +1,7 @@
-use serde::{Deserialize, Serialize};
-use fast_qr::convert::{Shape, Color};
-use std::collections::HashSet;
+use fast_qr::convert::{Color, Shape};
 use log::warn;
-
+use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -12,7 +11,9 @@ pub enum FailureMode {
 }
 
 impl Default for FailureMode {
-    fn default() -> Self { FailureMode::Continue }
+    fn default() -> Self {
+        FailureMode::Continue
+    }
 }
 
 /// Flexible color input accepted in TOML: hex string or RGB/RGBA arrays.
@@ -34,9 +35,9 @@ impl ColorCfg {
     #[inline]
     pub fn to_color(&self) -> Color {
         match self {
-            ColorCfg::Hex(s)   => Color::from(s.as_str()),
+            ColorCfg::Hex(s) => Color::from(s.as_str()),
             ColorCfg::Rgba(a4) => Color::from(*a4),
-            ColorCfg::Rgb(a3)  => Color::from(*a3),
+            ColorCfg::Rgb(a3) => Color::from(*a3),
         }
     }
 }
@@ -62,16 +63,28 @@ pub struct ShapeFlags {
 
 impl ShapeFlags {
     pub fn to_shape(&self) -> Shape {
-        if self.circle { Shape::Circle }
-        else if self.rounded_square { Shape::RoundedSquare }
-        else if self.vertical { Shape::Vertical }
-        else if self.horizontal { Shape::Horizontal }
-        else if self.diamond { Shape::Diamond }
-        else { Shape::Square }
+        if self.circle {
+            Shape::Circle
+        } else if self.rounded_square {
+            Shape::RoundedSquare
+        } else if self.vertical {
+            Shape::Vertical
+        } else if self.horizontal {
+            Shape::Horizontal
+        } else if self.diamond {
+            Shape::Diamond
+        } else {
+            Shape::Square
+        }
     }
 
     fn any_set(&self) -> bool {
-        self.square || self.circle || self.rounded_square || self.vertical || self.horizontal || self.diamond
+        self.square
+            || self.circle
+            || self.rounded_square
+            || self.vertical
+            || self.horizontal
+            || self.diamond
     }
 }
 
@@ -121,7 +134,7 @@ pub struct QrConfig {
     pub qr_path: Option<String>,
     #[serde(default)]
     pub on_failure: FailureMode,
-    
+
     #[serde(default)]
     pub include_default: bool,
     #[serde(default)]
@@ -131,7 +144,6 @@ pub struct QrConfig {
     pub shape: ShapeFlags,
     pub background: Option<ColorCfg>,
     pub module: Option<ColorCfg>,
-
 
     #[serde(default)]
     pub custom: std::collections::BTreeMap<String, Profile>,
@@ -150,14 +162,16 @@ impl Default for QrConfig {
             margin: Some(2),
             shape: ShapeFlags::default(),
             background: Some(ColorCfg::Hex("#FFFFFFFF".into())),
-            module:     Some(ColorCfg::Hex("#000000FF".into())),
+            module: Some(ColorCfg::Hex("#000000FF".into())),
             custom: Default::default(),
         }
     }
 }
 
 impl QrConfig {
-    pub fn is_enabled(&self) -> bool { self.enable.unwrap_or(true) }
+    pub fn is_enabled(&self) -> bool {
+        self.enable.unwrap_or(true)
+    }
 
     pub fn default_profile(&self) -> Profile {
         Profile {
@@ -176,7 +190,6 @@ impl QrConfig {
 
     /// Inherit missing presentation fields from `base`. Marker & qr_path do NOT inherit.
     pub(crate) fn inherit(base: &Profile, child: &Profile) -> Profile {
-
         Profile {
             enable: child.enable.or(base.enable),
             localhost_qr: child.localhost_qr.or(base.localhost_qr),
@@ -188,7 +201,11 @@ impl QrConfig {
                 height: child.fit.height.or(base.fit.height),
             },
             margin: child.margin.or(base.margin),
-            shape: if child.shape.any_set() { child.shape.clone() } else { base.shape.clone() },
+            shape: if child.shape.any_set() {
+                child.shape.clone()
+            } else {
+                base.shape.clone()
+            },
             background: child.background.clone().or_else(|| base.background.clone()),
             module: child.module.clone().or_else(|| base.module.clone()),
         }
@@ -220,7 +237,9 @@ impl QrConfig {
     }
 
     /// Check duplicates among a slice of already-built profiles (valid only).
-    pub fn duplicate_marker_from<'a>(profiles: impl IntoIterator<Item = &'a Profile>) -> Option<String> {
+    pub fn duplicate_marker_from<'a>(
+        profiles: impl IntoIterator<Item = &'a Profile>,
+    ) -> Option<String> {
         let mut seen: HashSet<String> = HashSet::new();
         for p in profiles {
             if let Some(m) = p.marker.as_ref() {

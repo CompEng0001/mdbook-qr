@@ -15,7 +15,10 @@ pub fn resolve_url(url: Option<&str>, localhost_qr: bool) -> Result<String> {
     // 1) explicit preprocessor url wins
     if let Some(u) = url {
         if !is_abs_http(u) {
-            warn!("preprocessor.qr.url is not absolute ('{}'); QR will encode it as-is", u);
+            warn!(
+                "preprocessor.qr.url is not absolute ('{}'); QR will encode it as-is",
+                u
+            );
         }
         debug!("using explicit preprocessor.qr.url = {}", u);
         return Ok(u.to_string());

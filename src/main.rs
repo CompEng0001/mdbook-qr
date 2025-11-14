@@ -3,7 +3,7 @@ use std::process;
 
 fn init_logging() {
     if std::env::var_os("RUST_LOG").is_none() {
-        unsafe {        
+        unsafe {
             std::env::set_var("RUST_LOG", "warn,mdbook_qr=debug");
         }
     }

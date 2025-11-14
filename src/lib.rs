@@ -1,10 +1,10 @@
 #![doc = include_str!("../README.md")]
 
 pub mod config;
-mod preprocessor;
-mod image;
 mod html;
+mod image;
+mod preprocessor;
 mod url;
 mod util;
 
-pub use preprocessor::{QrPreprocessor, run_preprocessor_once};
+pub use preprocessor::{run_preprocessor_once, QrPreprocessor};
