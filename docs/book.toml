@@ -18,6 +18,7 @@ enable = true
 
 [preprocessor.qr]
 enable = true
+localhost-qr = true
 qr-path = "figures/mdbook-qr-code.png"
 margin = 1
 shape.rectangle = true
@@ -30,8 +31,7 @@ header = true
 footer = true
 message.header = "Last updated: <em>{{date}}</em>"
 message.footer = "branch: {{branch}} {{sep}} commit: {{hash}} {{sep}} tag: {{tag}}"
-align.header = "center"
-align.footer = "center"
+align.both = "center"
 margin.header.top = "2em"
 margin.header.bottom = "2em"
 margin.footer = ["2em", "0", "0", "0"]
@@ -41,4 +41,3 @@ date-format = "%A %d %B %Y"
 time-format = "@ %H:%M:%S"
 branch = "mdbook-docs"
 hyperlink = true
-
