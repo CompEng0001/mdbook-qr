@@ -1,4 +1,5 @@
 use clap::{arg, Command};
+use mdbook_preprocessor::Preprocessor;
 use std::process;
 
 fn init_logging() {
@@ -36,8 +37,14 @@ fn main() {
         );
 
     let matches = cli.get_matches();
-    if let Some(("supports", _)) = matches.subcommand() {
-        process::exit(0);
+    if let Some(("supports", sub)) = matches.subcommand() {
+        let renderer = sub
+            .get_one::<String>("renderer")
+            .expect("required renderer argument");
+        let pre = mdbook_qr::QrPreprocessor::new();
+        // supports_renderer is Result<bool, _> in mdBook 0.5
+        let supported = pre.supports_renderer(renderer).unwrap_or(false);
+        process::exit(if supported { 0 } else { 1 });
     }
 
     if let Err(e) = mdbook_qr::run_preprocessor_once() {

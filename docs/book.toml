@@ -13,9 +13,6 @@ additional-js  = ["theme/pagetoc.js"]
 [output.html.print]
 enable = false
 
-[preprocessor.alerts]
-enable = true
-
 [preprocessor.qr]
 enable = true
 localhost-qr = true

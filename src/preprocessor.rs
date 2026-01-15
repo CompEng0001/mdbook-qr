@@ -1,8 +1,10 @@
 use anyhow::Result;
 use log::{debug, info, warn};
-use mdbook::book::{Book, BookItem};
-use mdbook::errors::Error;
-use mdbook::preprocess::{CmdPreprocessor, Preprocessor, PreprocessorContext};
+use mdbook_preprocessor::book::{Book, BookItem};
+use mdbook_preprocessor::errors::{Error, Result as MdResult};
+use mdbook_preprocessor::{MDBOOK_VERSION, Preprocessor, PreprocessorContext};
+use semver::{Version, VersionReq};
+use toml::Value as TomlValue;
 use std::collections::HashMap;
 use std::io;
 
@@ -25,25 +27,32 @@ impl Preprocessor for QrPreprocessor {
     fn name(&self) -> &str {
         "qr"
     }
-    fn run(&self, ctx: &PreprocessorContext, mut book: Book) -> std::result::Result<Book, Error> {
+    fn run(&self, ctx: &PreprocessorContext, mut book: Book) -> MdResult<Book> {
         run_impl(ctx, &mut book).map_err(Error::from)?;
         Ok(book)
     }
-    fn supports_renderer(&self, _renderer: &str) -> bool {
-        true
-    }
+    fn supports_renderer(&self, _renderer: &str) -> MdResult<bool> { Ok(true) }
 }
 
 pub fn run_preprocessor_once() -> Result<()> {
     let pre = QrPreprocessor::new();
-    let (ctx, book) = CmdPreprocessor::parse_input(io::stdin())?;
+    let (ctx, book) = mdbook_preprocessor::parse_input(io::stdin())?;
 
-    if ctx.mdbook_version != mdbook::MDBOOK_VERSION {
+    // mdBook 0.5: prefer a semver requirement check rather than raw string compare
+    if let (Ok(book_v), Ok(req)) = (
+        Version::parse(&ctx.mdbook_version),
+        VersionReq::parse(MDBOOK_VERSION),
+    ) {
+        if !req.matches(&book_v) {
+            warn!(
+                "The '{}' plugin was built against mdBook {}, called from {}",
+                pre.name(), MDBOOK_VERSION, ctx.mdbook_version
+            );
+        }
+    } else {
         warn!(
-            "The '{}' plugin was built against {}, called from {}",
-            pre.name(),
-            mdbook::MDBOOK_VERSION,
-            ctx.mdbook_version
+            "Unable to semver-parse mdBook versions (built={}, running={})",
+            MDBOOK_VERSION, ctx.mdbook_version
         );
     }
 
@@ -56,24 +65,22 @@ pub fn run_preprocessor_once() -> Result<()> {
 
 /// Does the given marker appear in any chapter?
 fn marker_in_book(book: &Book, marker: &str) -> bool {
-    book.sections.iter().any(|item| {
-        if let BookItem::Chapter(ch) = item {
-            ch.content.contains(marker)
-        } else {
-            false
-        }
+    book.iter().any(|item| match item {
+        BookItem::Chapter(ch) => ch.content.contains(marker),
+        _ => false,
     })
 }
 
 /// Build a `Profile` from the bare `[preprocessor.qr.custom]` table (no marker).
 /// Avoids `toml` type/version clashes by reading primitives only.
 fn load_custom_defaults(ctx: &PreprocessorContext) -> Option<Profile> {
-    let custom = ctx
+    // mdBook 0.5: typed Config::get<T>() -> Result<Option<T>, _>
+    let custom_val: TomlValue = ctx
         .config
-        .get("preprocessor")?
-        .get("qr")?
-        .get("custom")?
-        .as_table()?;
+        .get::<TomlValue>("preprocessor.qr.custom")
+        .ok()?
+        ?;
+    let custom = custom_val.as_table()?;
 
     let mut p = Profile {
         enable: None,
@@ -171,9 +178,9 @@ fn run_impl(ctx: &PreprocessorContext, book: &mut Book) -> Result<()> {
     // 1) Detect a *bare* [preprocessor.qr.custom] table (no named subtables)
     let has_bare_custom = ctx
         .config
-        .get("preprocessor")
-        .and_then(|pp| pp.get("qr"))
-        .and_then(|qr| qr.get("custom"))
+        .get::<TomlValue>("preprocessor.qr.custom")
+        .ok()
+        .and_then(|opt| opt)
         .map(|v| v.is_table())
         .unwrap_or(false)
         && cfg.custom.is_empty();
@@ -362,6 +369,6 @@ fn run_impl(ctx: &PreprocessorContext, book: &mut Book) -> Result<()> {
 /// Deserialize [preprocessor.qr] from the mdBook context.
 fn config_from_ctx(ctx: &PreprocessorContext) -> Option<QrConfig> {
     ctx.config
-        .get_preprocessor("qr")
-        .and_then(|table| toml::from_str(&toml::to_string(table).ok()?).ok())
+        .get::<QrConfig>("preprocessor.qr")
+        .ok()?
 }

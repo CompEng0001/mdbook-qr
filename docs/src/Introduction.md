@@ -23,10 +23,13 @@ It produces a PNG image during the build and replaces `{{QR_CODE}}` markers in c
 
 <br>
 
-> [!WARNING]
-> Due to break in changes currently mdbook-gitinfo works with mdbook v0.4.52, **not** 0.5.0.
-> - [https://crates.io/crates/mdbook/0.4.52](https://crates.io/crates/mdbook/0.4.52)
-> - [https://github.com/rust-lang/mdBook/releases/tag/v0.4.52](https://github.com/rust-lang/mdBook/releases/tag/v0.4.52)
+## Compatibility 
+
+| mdbook-qr version|mdbook versions|Notes|
+|:---------------:|:------------------:|----------------|
+| v1.\*.*|v0.5.* | Requires API changes introduced in mdbook 0.5.* |  
+| v0.\*.*|v0.4.* | Not compatible with 0.5.*+ |
+
 
 <br>
 
